@@ -1,0 +1,48 @@
+const AWS = require('aws-sdk');
+const ec2 = new AWS.EC2();
+
+exports.handler = async (event) => {
+  try {
+    // Get all running EC2 instances in the region
+    const response = await ec2.describeInstances({ Filters: [{ Name: 'instance-state-name', Values: ['running'] }] }).promise();
+
+    // Extract the tags for each instance
+    const tags = response.Reservations.flatMap(reservation =>
+      reservation.Instances.flatMap(instance => instance.Tags.map(tag => ({ instanceId: instance.InstanceId, key: tag.Key, value: tag.Value })))
+    );
+
+    console.log('Tags:', tags);
+
+    // Return the tags as a response
+    return {
+      statusCode: 200,
+      body: JSON.stringify(tags),
+    };
+  } catch (error) {
+    console.error(error);
+
+    // Return an error response
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: 'Error listing EC2 tags.' }),
+    };
+  }
+};
+
+
+
+
+ADD THIS IN TEST
+
+{
+    "instanceIds": [
+      "i-00cc1af8193c1f820",
+    ],
+    "tags": [
+      {
+        "Key": "Environment",
+        "Value": "Test"
+      },
+    ]
+  }
+  

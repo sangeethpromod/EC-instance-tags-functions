@@ -1,0 +1,32 @@
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
+
+exports.handler = async (event) => {
+  const ec2 = new AWS.EC2();
+  const instances = await ec2.describeInstances().promise();
+
+  const tags = instances.Reservations.flatMap(
+    (reservation) =>
+      reservation.Instances.flatMap((instance) =>
+        instance.Tags.map((tag) => ({
+          instanceId: instance.InstanceId,
+          key: tag.Key,
+          value: tag.Value,
+        }))
+      )
+  );
+
+  const params = {
+    Bucket: 'csvtestbucket24',
+    Key: 'tags.json',
+    Body: JSON.stringify(tags),
+    ContentType: 'application/json',
+  };
+
+  await s3.upload(params).promise();
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify(tags),
+  };
+};
