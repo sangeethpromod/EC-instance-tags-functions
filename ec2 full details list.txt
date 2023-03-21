@@ -1,0 +1,65 @@
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
+
+exports.handler = async (event, context) => {
+  try {
+    const ec2 = new AWS.EC2();
+    const data = await ec2.describeInstances().promise();
+    const instances = data.Reservations.map(reservation =>
+      reservation.Instances.map(instance => ({
+        InstanceId: instance.InstanceId,
+        InstanceType: instance.InstanceType,
+        State: instance.State.Name,
+        PrivateIpAddress: instance.PrivateIpAddress,
+        PublicIpAddress: instance.PublicIpAddress,
+        LaunchTime: instance.LaunchTime,
+        Tags: instance.Tags,
+      }))
+    ).flat();
+
+    const csvData = instances.map(instance => ({
+      InstanceId: instance.InstanceId,
+      InstanceType: instance.InstanceType,
+      State: instance.State,
+      PrivateIpAddress: instance.PrivateIpAddress,
+      PublicIpAddress: instance.PublicIpAddress,
+      LaunchTime: instance.LaunchTime,
+      Tags: instance.Tags.map(tag => `${tag.Key}:${tag.Value}`).join(','),
+    }));
+
+    const csvString = csvData.map(row => Object.values(row).join(',')).join('\n');
+    const params = {
+      Bucket: 'csvtestbucket24',
+      Key: 'tagdetails.csv',
+      Body: csvString,
+    };
+
+    await s3.putObject(params).promise();
+    return {
+      statusCode: 200,
+      body: 'EC2 instances listed and CSV file saved in S3 bucket',
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: error.message,
+    };
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
