@@ -1,0 +1,33 @@
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
+const ec2 = new AWS.EC2();
+
+exports.handler = async (event, context) => {
+  try {
+    const ebsVolumes = await ec2.describeVolumes({
+      Filters:[
+        {Name: 'status', Values:['in-use']}
+        ]
+    }).promise()
+    
+    const csvData = ebsVolumes.Volumes.map(volume => `${volume.VolumeId},${volume.Type},${volume.Size},${volume.State}`).join('\n');
+    const params = {
+      Bucket: 'sangeeth-lcms3',
+      Key: 'ebs-volumes.csv',
+      Body: csvData,
+      ContentType: 'text/csv'
+    };
+    const s3Result = await s3.putObject(params).promise();
+    
+    return {
+      statusCode: 200,
+      body: 'Successfully listed EBS volumes in CSV file in S3 bucket'
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      statusCode: 500,
+      body: 'Failed to list EBS volumes in CSV file in S3 bucket'
+    };
+  }
+};
